@@ -2634,6 +2634,12 @@ AC_SUBST([BUILD_WITH_LIBGPS_LIBS])
 
 # }}}
 
+## --with-libuuid {{{
+# AC_ARG_WITH([libuuid],
+#
+#)
+## }}}
+
 # --with-libgrpc++ {{{
 AC_ARG_WITH([libgrpc++],
   [AS_HELP_STRING([--with-libgrpc++@<:@=PREFIX@:>@], [Path to libgrpc++.])],
@@ -6642,6 +6648,7 @@ AC_PLUGIN([write_prometheus],    [$plugin_write_prometheus], [Prometheus write p
 AC_PLUGIN([write_redis],         [$with_libhiredis],        [Redis output plugin])
 AC_PLUGIN([write_riemann],       [$with_libriemann_client], [Riemann output plugin])
 AC_PLUGIN([write_sensu],         [yes],                     [Sensu output plugin])
+AC_PLUGIN([write_gsc],           [yes],                     [Google Service Control Report plugin])
 AC_PLUGIN([write_tsdb],          [yes],                     [TSDB output plugin])
 AC_PLUGIN([xencpu],              [$plugin_xencpu],          [Xen Host CPU usage])
 AC_PLUGIN([xmms],                [$with_libxmms],           [XMMS statistics])
@@ -7059,6 +7066,7 @@ AC_MSG_RESULT([    write_prometheus. . . $enable_write_prometheus])
 AC_MSG_RESULT([    write_redis . . . . . $enable_write_redis])
 AC_MSG_RESULT([    write_riemann . . . . $enable_write_riemann])
 AC_MSG_RESULT([    write_sensu . . . . . $enable_write_sensu])
+AC_MSG_RESULT([    write_gsc . . . . . . $enable_write_gsc])
 AC_MSG_RESULT([    write_tsdb  . . . . . $enable_write_tsdb])
 AC_MSG_RESULT([    xencpu  . . . . . . . $enable_xencpu])
 AC_MSG_RESULT([    xmms  . . . . . . . . $enable_xmms])

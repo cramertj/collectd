@@ -27,7 +27,31 @@ CLEANFILES = \
 	src/pinba.pb-c.c \
 	src/pinba.pb-c.h \
 	types.pb.cc \
-	types.pb.h
+	types.pb.h \
+	google/api/annotations.pb.cc \
+	google/api/annotations.pb.h \
+	google/api/servicecontrol/v1/metric_value.pb.cc \
+	google/api/servicecontrol/v1/metric_value.pb.h \
+	google/api/servicecontrol/v1/service_controller.pb.cc \
+	google/api/servicecontrol/v1/service_controller.pb.h \
+	google/api/servicecontrol/v1/check_error.pb.cc \
+	google/api/servicecontrol/v1/check_error.pb.h \
+	google/api/servicecontrol/v1/distribution.pb.cc \
+	google/api/servicecontrol/v1/distribution.pb.h \
+	google/api/servicecontrol/v1/log_entry.pb.cc \
+	google/api/servicecontrol/v1/log_entry.pb.h \
+	google/api/servicecontrol/v1/operation.pb.cc \
+	google/api/servicecontrol/v1/operation.pb.h \
+	google/api/servicecontrol/v1/service_controller.grpc.pb.cc \
+	google/api/servicecontrol/v1/service_controller.grpc.pb.h \
+	google/api/http.pb.cc \
+	google/api/http.pb.h \
+	google/rpc/status.pb.cc \
+	google/rpc/status.pb.h \
+	google/type/money.pb.cc \
+	google/type/money.pb.h \
+	google/logging/type/log_severity.pb.cc \
+	google/logging/type/log_severity.pb.h
 
 
 EXTRA_DIST = \
@@ -41,6 +65,16 @@ EXTRA_DIST = \
 	proto/collectd.proto \
 	proto/prometheus.proto \
 	proto/types.proto \
+	proto/google/api/annotations.proto \
+	proto/google/api/servicecontrol/v1/check_error.proto \
+	proto/google/api/servicecontrol/v1/log_entry.proto \
+	proto/google/api/servicecontrol/v1/service_controller.proto \
+	proto/google/api/servicecontrol/v1/distribution.proto \
+	proto/google/api/servicecontrol/v1/metric_value.proto \
+	proto/google/api/http.proto \
+	proto/google/rpc/status.proto \
+	proto/google/type/money.proto \
+	proto/google/logging/type/log_severity.proto \
 	src/collectd-email.pod \
 	src/collectd-exec.pod \
 	src/collectd-java.pod \
@@ -1824,6 +1858,27 @@ write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_WRITE_GSC
+pkglib_LTLIBRARIES += write_gsc.la
+write_gsc_la_SOURCES = src/write_gsc.cc
+nodist_write_gsc_la_SOURCES = \
+	google/api/annotations.pb.cc \
+	google/api/servicecontrol/v1/check_error.pb.cc \
+	google/api/servicecontrol/v1/log_entry.pb.cc \
+	google/api/servicecontrol/v1/service_controller.grpc.pb.cc \
+	google/api/servicecontrol/v1/service_controller.pb.cc \
+	google/api/servicecontrol/v1/distribution.pb.cc \
+	google/api/servicecontrol/v1/metric_value.pb.cc \
+	google/api/servicecontrol/v1/operation.pb.cc \
+	google/api/http.pb.cc \
+	google/rpc/status.pb.cc \
+	google/type/money.pb.cc \
+	google/logging/type/log_severity.pb.cc
+write_gsc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS) -Iuuid
+write_gsc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS) -luuid
+write_gsc_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
+endif
+
 if BUILD_PLUGIN_WRITE_TSDB
 pkglib_LTLIBRARIES += write_tsdb.la
 write_tsdb_la_SOURCES = src/write_tsdb.c
@@ -1918,7 +1973,22 @@ endif
 
 if HAVE_PROTOC3
 if HAVE_GRPC_CPP
-BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
+BUILT_SOURCES += \
+	collectd.grpc.pb.cc \
+	collectd.pb.cc \
+	types.pb.cc \
+	annotations.pb.cc \
+	check_error.pb.cc \
+	log_entry.pb.cc \
+	service_controller.grpc.pb.cc \
+	service_controller.pb.cc \
+	distribution.pb.cc \
+	metric_value.pb.cc \
+	operation.pb.cc \
+	http.pb.cc \
+	status.pb.cc \
+	money.pb.cc \
+	log_severity.pb.cc
 
 collectd.grpc.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
@@ -1929,6 +1999,45 @@ collectd.pb.cc: $(srcdir)/proto/collectd.proto $(srcdir)/proto/types.proto
 
 types.pb.cc: $(srcdir)/proto/types.proto
 	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+annotations.pb.cc: $(srcdir)/proto/google/api/annotations.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+check_error.pb.cc: $(srcdir)/proto/google/api/servicecontrol/v1/check_error.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+log_entry.pb.cc: $(srcdir)/proto/google/api/servicecontrol/v1/log_entry.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+service_controller.grpc.pb.cc: \
+	$(srcdir)/proto/google/api/servicecontrol/v1/service_controller.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto \
+		--grpc_out=$(builddir) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $<
+
+service_controller.pb.cc: $(srcdir)/proto/google/api/servicecontrol/v1/service_controller.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+distribution.pb.cc: $(srcdir)/proto/google/api/servicecontrol/v1/distribution.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+metric_value.pb.cc: $(srcdir)/proto/google/api/servicecontrol/v1/metric_value.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+operation.pb.cc: $(srcdir)/proto/google/api/servicecontrol/v1/operation.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+http.pb.cc: $(srcdir)/proto/google/api/http.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+status.pb.cc: $(srcdir)/proto/google/rpc/status.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+money.pb.cc: $(srcdir)/proto/google/type/money.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
+log_severity.pb.cc: $(srcdir)/proto/google/logging/type/log_severity.proto
+	$(V_PROTOC)$(PROTOC) -I$(srcdir)/proto --cpp_out=$(builddir) $<
+
 endif
 endif
 
