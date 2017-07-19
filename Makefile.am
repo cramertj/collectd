@@ -1841,8 +1841,9 @@ nodist_write_test_plugin_la_SOURCES = \
 	google/rpc/status.pb.cc \
 	google/type/money.pb.cc \
 	google/logging/type/log_severity.pb.cc
-write_test_plugin_la_CPPFLAGS = $(AM_CPPFLAGS)
-write_test_plugin_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+write_test_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
+write_test_plugin_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+write_test_plugin_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB
