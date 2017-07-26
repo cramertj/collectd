@@ -1833,6 +1833,7 @@ nodist_write_test_plugin_la_SOURCES = \
 	google/api/annotations.pb.cc \
 	google/api/servicecontrol/v1/check_error.pb.cc \
 	google/api/servicecontrol/v1/log_entry.pb.cc \
+	google/api/servicecontrol/v1/service_controller.grpc.pb.cc \
 	google/api/servicecontrol/v1/service_controller.pb.cc \
 	google/api/servicecontrol/v1/distribution.pb.cc \
 	google/api/servicecontrol/v1/metric_value.pb.cc \
@@ -1841,8 +1842,8 @@ nodist_write_test_plugin_la_SOURCES = \
 	google/rpc/status.pb.cc \
 	google/type/money.pb.cc \
 	google/logging/type/log_severity.pb.cc
-write_test_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS)
-write_test_plugin_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS)
+write_test_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS) -Iuuid
+write_test_plugin_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS) -luuid
 write_test_plugin_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
 endif
 

@@ -2634,6 +2634,12 @@ AC_SUBST([BUILD_WITH_LIBGPS_LIBS])
 
 # }}}
 
+## --with-libuuid {{{
+# AC_ARG_WITH([libuuid],
+#
+#)
+## }}}
+
 # --with-libgrpc++ {{{
 AC_ARG_WITH([libgrpc++],
   [AS_HELP_STRING([--with-libgrpc++@<:@=PREFIX@:>@], [Path to libgrpc++.])],
