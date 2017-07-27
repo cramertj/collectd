@@ -41,12 +41,16 @@ static const char this_plugin_name[] = "write_test_plugin";
 
 class ServiceControllerClient {
   public:
-    ServiceControllerClient(std::shared_ptr<grpc::Channel> channel)
-      : stub_(ServiceController::NewStub(channel)) {}
+    ServiceControllerClient(
+      std::shared_ptr<grpc::Channel> channel,
+      std::shared_ptr<grpc::CallCredentials> call_creds
+      ) : stub_(ServiceController::NewStub(channel)),
+          call_creds_(call_creds) {}
 
   int Report(ReportRequest request) {
     ReportResponse response;
     grpc::ClientContext context;
+    context.set_credentials(call_creds_);
     grpc::Status status = stub_->Report(&context, request, &response);
 
     if (status.ok()) {
@@ -60,6 +64,7 @@ class ServiceControllerClient {
 
   private:
     std::unique_ptr<ServiceController::Stub> stub_;
+    std::shared_ptr<grpc::CallCredentials> call_creds_;
 };
 
 bool is_prefix_of(const char* str1, const char* str2) {
@@ -311,16 +316,25 @@ static int wtest_write(const data_set_t *ds,
   string uuid_string(uuid_chars);
   operation.set_operation_id(uuid_string);
 
-  // TODO: set global operation labels
+  // TODO: set global operation labels properly :)
+
+  auto labels = operation.mutable_labels();
+  (*labels)[string("cloud.googleapis.com/project")] = string("test_project");
+  (*labels)[string("cloud.googleapis.com/location")] = string("test_location");
+  (*labels)[string("redis.googleapis.com/instance_id")] = string("test_instance_id");
+  (*labels)[string("redis.googleapis.com/node_id")] = string("test_node_id");
+  (*labels)[string("cloud.googleapis.com/uid")] = string("test_my_super_fancy_uid");
 
   ReportRequest request;
-  request.set_service_name("dummy_service_name");
+  request.set_service_name("redis.googleapis.com");
   *request.add_operations() = operation;
 
-  auto creds = grpc::GoogleComputeEngineCredentials();
-  auto channel = grpc::CreateChannel("localhost:50051", creds);
+  auto ssl_creds = grpc::SslCredentials(grpc::SslCredentialsOptions{});
+  auto channel = grpc::CreateChannel("https://servicecontrol.googleapis.com:443", ssl_creds);
+
+  auto call_creds = grpc::GoogleComputeEngineCredentials();
   
-  ServiceControllerClient client(channel);
+  ServiceControllerClient client(channel, call_creds);
   client.Report(request);
 
   return 0;

@@ -27,7 +27,31 @@ CLEANFILES = \
 	src/pinba.pb-c.c \
 	src/pinba.pb-c.h \
 	types.pb.cc \
-	types.pb.h
+	types.pb.h \
+	google/api/annotations.pb.cc \
+	google/api/annotations.pb.h \
+	google/api/servicecontrol/v1/metric_value.pb.cc \
+	google/api/servicecontrol/v1/metric_value.pb.h \
+	google/api/servicecontrol/v1/service_controller.pb.cc \
+	google/api/servicecontrol/v1/service_controller.pb.h \
+	google/api/servicecontrol/v1/check_error.pb.cc \
+	google/api/servicecontrol/v1/check_error.pb.h \
+	google/api/servicecontrol/v1/distribution.pb.cc \
+	google/api/servicecontrol/v1/distribution.pb.h \
+	google/api/servicecontrol/v1/log_entry.pb.cc \
+	google/api/servicecontrol/v1/log_entry.pb.h \
+	google/api/servicecontrol/v1/operation.pb.cc \
+	google/api/servicecontrol/v1/operation.pb.h \
+	google/api/servicecontrol/v1/service_controller.grpc.pb.cc \
+	google/api/servicecontrol/v1/service_controller.grpc.pb.h \
+	google/api/http.pb.cc \
+	google/api/http.pb.h \
+	google/rpc/status.pb.cc \
+	google/rpc/status.pb.h \
+	google/type/money.pb.cc \
+	google/type/money.pb.h \
+	google/logging/type/log_severity.pb.cc \
+	google/logging/type/log_severity.pb.h
 
 
 EXTRA_DIST = \
@@ -1943,9 +1967,9 @@ if HAVE_PROTOC3
 if HAVE_GRPC_CPP
 BUILT_SOURCES += \
 	collectd.grpc.pb.cc \
-  collectd.pb.cc \
+	collectd.pb.cc \
 	types.pb.cc \
-	google/api/annotations.pb.cc \
+	annotations.pb.cc \
 	check_error.pb.cc \
 	log_entry.pb.cc \
 	service_controller.grpc.pb.cc \
