@@ -10,6 +10,7 @@ extern "C" {
 }
 
 #include <memory>
+#include <time.h>
 #include <uuid/uuid.h> // TODO: add uuid-dev to deps in configure
 #include <vector>
 
@@ -309,6 +310,8 @@ static int wtest_write(const data_set_t *ds,
     return 0;
   }
 
+  // TODO: set these operation values properly
+
   uuid_t uuid;
   uuid_generate(uuid);
   char uuid_chars [37]; // UUIDs are 36 characters + trailing '\0'
@@ -316,7 +319,8 @@ static int wtest_write(const data_set_t *ds,
   string uuid_string(uuid_chars);
   operation.set_operation_id(uuid_string);
 
-  // TODO: set global operation labels properly :)
+  operation.set_operation_name("redis_metrics_operation");
+
   operation.set_consumer_id("project:google.com:henryf-test");
 
   auto labels = operation.mutable_labels();
@@ -325,6 +329,12 @@ static int wtest_write(const data_set_t *ds,
   (*labels)[string("redis.googleapis.com/instance_id")] = string("test_instance_id");
   (*labels)[string("redis.googleapis.com/node_id")] = string("test_node_id");
   (*labels)[string("cloud.googleapis.com/uid")] = string("test_my_super_fancy_uid");
+
+  time_t cur_time = time(NULL);
+  operation.mutable_start_time()->set_seconds(cur_time);
+  operation.mutable_start_time()->set_nanos(0);
+  operation.mutable_end_time()->set_seconds(cur_time);
+  operation.mutable_end_time()->set_nanos(0);
 
   ReportRequest request;
   request.set_service_name("redis.googleapis.com");
