@@ -317,6 +317,7 @@ static int wtest_write(const data_set_t *ds,
   operation.set_operation_id(uuid_string);
 
   // TODO: set global operation labels properly :)
+  operation.set_consumer_id("project:google.com:henryf-test");
 
   auto labels = operation.mutable_labels();
   (*labels)[string("cloud.googleapis.com/project")] = string("test_project");
