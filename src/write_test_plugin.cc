@@ -330,7 +330,7 @@ static int wtest_write(const data_set_t *ds,
   *request.add_operations() = operation;
 
   auto ssl_creds = grpc::SslCredentials(grpc::SslCredentialsOptions{});
-  auto channel = grpc::CreateChannel("https://servicecontrol.googleapis.com:443", ssl_creds);
+  auto channel = grpc::CreateChannel("servicecontrol.googleapis.com:443", ssl_creds);
 
   auto call_creds = grpc::GoogleComputeEngineCredentials();
   
