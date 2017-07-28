@@ -1850,10 +1850,10 @@ write_sensu_la_SOURCES = src/write_sensu.c
 write_sensu_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
-if BUILD_PLUGIN_WRITE_TEST_PLUGIN
-pkglib_LTLIBRARIES += write_test_plugin.la
-write_test_plugin_la_SOURCES = src/write_test_plugin.cc
-nodist_write_test_plugin_la_SOURCES = \
+if BUILD_PLUGIN_WRITE_GSC
+pkglib_LTLIBRARIES += write_gsc.la
+write_gsc_la_SOURCES = src/write_gsc.cc
+nodist_write_gsc_la_SOURCES = \
 	google/api/annotations.pb.cc \
 	google/api/servicecontrol/v1/check_error.pb.cc \
 	google/api/servicecontrol/v1/log_entry.pb.cc \
@@ -1866,9 +1866,9 @@ nodist_write_test_plugin_la_SOURCES = \
 	google/rpc/status.pb.cc \
 	google/type/money.pb.cc \
 	google/logging/type/log_severity.pb.cc
-write_test_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS) -Iuuid
-write_test_plugin_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS) -luuid
-write_test_plugin_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
+write_gsc_la_CPPFLAGS = $(AM_CPPFLAGS) $(BUILD_WITH_LIBGRPCPP_CPPFLAGS) $(BUILD_WITH_LIBPROTOBUF_CPPFLAGS) -Iuuid
+write_gsc_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_LIBGRPCPP_LDFLAGS) $(BUILD_WITH_LIBPROTOBUF_LDFLAGS) -luuid
+write_gsc_la_LIBADD = $(BUILD_WITH_LIBGRPCPP_LIBS) $(BUILD_WITH_LIBPROTOBUF_LIBS)
 endif
 
 if BUILD_PLUGIN_WRITE_TSDB

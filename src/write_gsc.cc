@@ -38,21 +38,23 @@ using google::protobuf::string;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
 
-static const char this_plugin_name[] = "write_test_plugin";
+static const char this_plugin_name[] = "write_gsc";
+static const char service_control_addr[] = "servicecontrol.googleapis.com:443";
 
 class ServiceControllerClient {
-  public:
-    ServiceControllerClient(
+public:
+  ServiceControllerClient(
       std::shared_ptr<grpc::Channel> channel,
       std::shared_ptr<grpc::CallCredentials> call_creds
-      ) : stub_(ServiceController::NewStub(channel)),
-          call_creds_(call_creds) {}
+    ) : stub_(ServiceController::NewStub(channel)),
+        call_creds_(call_creds)
+  {}
 
   int Report(ReportRequest request) {
     ReportResponse response;
-    grpc::ClientContext context;
-    context.set_credentials(call_creds_);
-    grpc::Status status = stub_->Report(&context, request, &response);
+    grpc::ClientContext context_;
+    context_.set_credentials(call_creds_);
+    grpc::Status status = stub_->Report(&context_, request, &response);
 
     if (status.ok()) {
       return 0;
@@ -66,6 +68,19 @@ class ServiceControllerClient {
   private:
     std::unique_ptr<ServiceController::Stub> stub_;
     std::shared_ptr<grpc::CallCredentials> call_creds_;
+};
+
+class WgscPluginContext {
+  public:
+    WgscPluginContext():
+      client(
+        grpc::CreateChannel(
+           service_control_addr,
+           grpc::SslCredentials(grpc::SslCredentialsOptions{})),
+        grpc::GoogleComputeEngineCredentials()
+      )
+      {}
+    ServiceControllerClient client;
 };
 
 bool is_prefix_of(const char* str1, const char* str2) {
@@ -239,65 +254,42 @@ static int raw_values_to_metric_value_sets(
 
 
 //
-// -----  wtest_context impl -----
+// -----  WgscPluginContext impl -----
 //
-typedef struct {
-} wtest_context_t;
 
-static void wtest_context_destroy(wtest_context_t *context);
+static WgscPluginContext *wgsc_context_create() { /* {{{ */
+  return new (std::nothrow) WgscPluginContext;
+} /* }}} wgsc_context_create */
 
-static wtest_context_t *wtest_context_create() { /* {{{ */
-  wtest_context_t *build = NULL;
-  wtest_context_t *result = NULL;
-
-  build = (wtest_context_t *) calloc(1, sizeof(*build));
-  if (build == NULL) {
-    ERROR("wtest_context_create: calloc failed.");
-    goto leave;
-  }
-
-  // Success!
-  result = build;
-  build = NULL;
-
-  leave:
-    wtest_context_destroy(build);
-    return result;
-} /* }}} wtest_context_create */
-
-static void wtest_context_destroy(wtest_context_t *context) { /* {{{ */
-  if (context == NULL) {
-    return;
-  }
-  sfree(context);
-} /* }}} wtest_context_destroy */
+static void wgsc_context_destroy(WgscPluginContext *context) { /* {{{ */
+  delete context;
+} /* }}} wgsc_context_destroy */
 
 //
 // ----- lifecycle functions -----
 //
-// wtest_config
-// wtest_init
-// wtest_flush
-// wtest_write
-// wtest_shutdown
+// wgsc_config
+// wgsc_init
+// wgsc_flush
+// wgsc_write
+// wgsc_shutdown
 //
 extern "C" { /* {{{ */
-static int wtest_flush(cdtime_t timeout,
+static int wgsc_flush(cdtime_t timeout,
                        const char *identifier __attribute__((unused)),
                        user_data_t *user_data) { /* {{{ */
-  DEBUG("Logging shtuff from wtest_flush");
+  DEBUG("Logging shtuff from wgsc_flush");
   return 0;
-} /* }}} wtest_flush */
+} /* }}} wgsc_flush */
 
-static int wtest_write(const data_set_t *ds,
+static int wgsc_write(const data_set_t *ds,
                        const value_list_t *vl,
                        user_data_t *user_data) { /* {{{ */
-  DEBUG("Logging shtuff from wtest_write");
+  DEBUG("Logging shtuff from wgsc_write");
   assert(ds->ds_num > 0);
 
   // TODO: use the context to store a reusable client channel/context
-  wtest_context_t *ctx = (wtest_context_t *)user_data->data;
-  (void)ctx;
+  WgscPluginContext *ctx = (WgscPluginContext *)user_data->data;
 
   Operation operation;
   if (raw_values_to_metric_value_sets(
@@ -330,7 +322,7 @@ static int wtest_write(const data_set_t *ds,
   (*labels)[string("redis.googleapis.com/node_id")] = string("test_node_id");
   (*labels)[string("cloud.googleapis.com/uid")] = string("test_my_super_fancy_uid");
 
-  time_t cur_time = time(NULL);
+  time_t cur_time = time(nullptr);
   operation.mutable_start_time()->set_seconds(cur_time);
   operation.mutable_start_time()->set_nanos(0);
   operation.mutable_end_time()->set_seconds(cur_time);
@@ -339,81 +331,75 @@ static int wtest_write(const data_set_t *ds,
   ReportRequest request;
   request.set_service_name("redis.googleapis.com");
   *request.add_operations() = operation;
-
-  auto ssl_creds = grpc::SslCredentials(grpc::SslCredentialsOptions{});
-  auto channel = grpc::CreateChannel("servicecontrol.googleapis.com:443", ssl_creds);
-
-  auto call_creds = grpc::GoogleComputeEngineCredentials();
-  
-  ServiceControllerClient client(channel, call_creds);
-  client.Report(request);
+ 
+  ctx->client.Report(request);
 
   return 0;
-} /* }}} wtest_write */
+} /* }}} wgsc_write */
 
-static int wtest_config(oconfig_item_t *ci) /* {{{ */
+static int wgsc_config(oconfig_item_t *ci) /* {{{ */
 {
   return 0;
-} /* }}} wtest_config */
+} /* }}} wgsc_config */
 
-static int wtest_init(void) { /* {{{ */
+static int wgsc_init(void) { /* {{{ */
   // Items to cleanup on exit.
-  wtest_context_t *ctx = NULL;
+  WgscPluginContext *ctx = nullptr;
   int result = -1;
 
   user_data_t user_data = {
-    .data = NULL,
-    .free_func = NULL
+    .data = nullptr,
+    .free_func = nullptr
   };
 
-  ctx = wtest_context_create();
-  if (ctx == NULL) {
-    ERROR("%s: wtest_init: wtest_context_create failed.", this_plugin_name);
+  ctx = wgsc_context_create();
+  if (ctx == nullptr) {
+    ERROR("%s: wgsc_init: wgsc_context_create failed.", this_plugin_name);
     goto leave;
   }
 
   user_data.data = ctx;
 
-  if (plugin_register_flush(this_plugin_name, wtest_flush, &user_data) != 0) {
-    ERROR("%s: wtest_init: plugin_register_flush failed.", this_plugin_name);
+  if (plugin_register_flush(this_plugin_name, wgsc_flush, &user_data) != 0) {
+    ERROR("%s: wgsc_init: plugin_register_flush failed.", this_plugin_name);
     goto leave;
   }
 
-  user_data.free_func = (void(*)(void*))&wtest_context_destroy;
+  user_data.free_func = (void(*)(void*))&wgsc_context_destroy;
 
-  if (plugin_register_write(this_plugin_name, wtest_write, &user_data) != 0) {
-    ERROR("%s: wtest_init: plugin_register_write failed.", this_plugin_name);
+  if (plugin_register_write(this_plugin_name, wgsc_write, &user_data) != 0) {
+    ERROR("%s: wgsc_init: plugin_register_write failed.", this_plugin_name);
     goto leave;
   }
 
-  ctx = NULL;
+  ctx = nullptr;
   result = 0;
 
   leave:
-    wtest_context_destroy(ctx);
+    wgsc_context_destroy(ctx);
     return result;
-} /* }}} wtest_init */
+} /* }}} wgsc_init */
 
-static int wtest_shutdown(void) { /* {{{ */
+static int wgsc_shutdown(void) { /* {{{ */
     return 0;
-} /* }}} wtest_shutdown */
+} /* }}} wgsc_shutdown */
 
 
 //
 // ----- Plugin registration -----
 //
 // Registers:
-//  wtest_config
-//  wtest_init, which registers:
-//    wtest_flush
-//    wtest_write
-//  wtest_shutdown
+//  wgsc_config
+//  wgsc_init, which registers:
+//    wgsc_flush
+//    wgsc_write
+//  wgsc_shutdown
 //
 void module_register(void) /* {{{ */
 {
   INFO("%s: inside module_register for %s", this_plugin_name, COLLECTD_USERAGENT);
-  plugin_register_complex_config(this_plugin_name, wtest_config);
-  plugin_register_init(this_plugin_name, wtest_init);
-  plugin_register_shutdown(this_plugin_name, wtest_shutdown);
+  plugin_register_complex_config(this_plugin_name, wgsc_config);
+  plugin_register_init(this_plugin_name, wgsc_init);
+  plugin_register_shutdown(this_plugin_name, wgsc_shutdown);
 } /* }}} module_register */
 } /* }}} extern "C" */
