@@ -83,6 +83,20 @@ class WgscPluginContext {
     ServiceControllerClient client;
 };
 
+class WgscPluginConfig {
+  public:
+    WgscPluginConfig() {}
+
+    string operation_name;
+    string consumer_id;
+    string service_name;
+    // Monitored Resource labels
+    Map<string, string> mr_labels;
+};
+
+// Created in wgsc_config, never deleted.
+static WgscPluginConfig *wgsc_plugin_config_g = nullptr;
+
 bool is_prefix_of(const char* str1, const char* str2) {
     return (strncmp(str1, str2, strlen(str1)) == 0);
 }
@@ -278,15 +292,19 @@ extern "C" { /* {{{ */
 static int wgsc_flush(cdtime_t timeout,
                        const char *identifier __attribute__((unused)),
                        user_data_t *user_data) { /* {{{ */
-  DEBUG("Logging shtuff from wgsc_flush");
+  DEBUG("Logging stuff from wgsc_flush");
   return 0;
 } /* }}} wgsc_flush */
 
 static int wgsc_write(const data_set_t *ds,
                        const value_list_t *vl,
                        user_data_t *user_data) { /* {{{ */
-  DEBUG("Logging shtuff from wgsc_write");
   assert(ds->ds_num > 0);
+
+  if (wgsc_plugin_config_g == nullptr) {
+    ERROR("%s: wgsc_write: uninitialized config", this_plugin_name);
+    return -1;
+  }
 
   // TODO: use the context to store a reusable client channel/context
   WgscPluginContext *ctx = (WgscPluginContext *)user_data->data;
@@ -302,8 +320,6 @@ static int wgsc_write(const data_set_t *ds,
     return 0;
   }
 
-  // TODO: set these operation values properly
-
   uuid_t uuid;
   uuid_generate(uuid);
   char uuid_chars [37]; // UUIDs are 36 characters + trailing '\0'
@@ -311,16 +327,9 @@ static int wgsc_write(const data_set_t *ds,
   string uuid_string(uuid_chars);
   operation.set_operation_id(uuid_string);
 
-  operation.set_operation_name("redis_metrics_operation");
-
-  operation.set_consumer_id("project:google.com:henryf-test");
-
-  auto labels = operation.mutable_labels();
-  (*labels)[string("cloud.googleapis.com/project")] = string("test_project");
-  (*labels)[string("cloud.googleapis.com/location")] = string("test_location");
-  (*labels)[string("redis.googleapis.com/instance_id")] = string("test_instance_id");
-  (*labels)[string("redis.googleapis.com/node_id")] = string("test_node_id");
-  (*labels)[string("cloud.googleapis.com/uid")] = string("test_my_super_fancy_uid");
+  operation.set_operation_name(wgsc_plugin_config_g->operation_name);
+  operation.set_consumer_id(wgsc_plugin_config_g->consumer_id);
+  *operation.mutable_labels() = wgsc_plugin_config_g->mr_labels;
 
   time_t cur_time = time(nullptr);
   operation.mutable_start_time()->set_seconds(cur_time);
@@ -329,7 +338,7 @@ static int wgsc_write(const data_set_t *ds,
   operation.mutable_end_time()->set_nanos(0);
 
   ReportRequest request;
-  request.set_service_name("redis.googleapis.com");
+  request.set_service_name(wgsc_plugin_config_g->service_name);
   *request.add_operations() = operation;
  
   ctx->client.Report(request);
@@ -337,8 +346,72 @@ static int wgsc_write(const data_set_t *ds,
   return 0;
 } /* }}} wgsc_write */
 
+static int wgsc_conf_get_match(const oconfig_item_t *ci, const char *key, string *ret_string) {
+  if (strcasecmp(ci->key, key) != 0) {
+    return 0;
+  }
+
+  char *value = nullptr;
+  if (cf_util_get_string(ci, &value) != 0) {
+    ERROR("%s: wgsc_conf_get_match: failed to get value for %s", this_plugin_name, key);
+    return -1;
+  }
+  *ret_string = string(value);
+  sfree(value);
+  return 1;
+}
+
 static int wgsc_config(oconfig_item_t *ci) /* {{{ */
 {
+  wgsc_plugin_config_g = new (std::nothrow) WgscPluginConfig;
+  if (wgsc_plugin_config_g == nullptr) {
+    ERROR("%s: wgsc_config: failed to create new WgscPluginConfig", this_plugin_name);
+    return -1;
+  }
+
+  for (int i = 0; i < ci->children_num; i++) {
+    const oconfig_item_t *child = &ci->children[i];
+    if (wgsc_conf_get_match(
+          child, "OperationName", &wgsc_plugin_config_g->operation_name) != 0) {
+      continue;
+    }
+    if (wgsc_conf_get_match(
+          child, "ConsumerId", &wgsc_plugin_config_g->consumer_id) != 0) {
+      continue;
+    }
+    if (wgsc_conf_get_match(
+          child, "ServiceName", &wgsc_plugin_config_g->service_name) != 0) {
+      continue;
+    }
+    if (strcasecmp(child->key, "MonitoredResourceLabels") == 0) {
+      for (int j = 0; j < child->children_num; j++) {
+        const oconfig_item_t *label_child = &child->children[j];
+        char *label_value = nullptr;
+        if (cf_util_get_string(label_child, &label_value) != 0) {
+          ERROR("%s: wgsc_config: failed to get value for label %s",
+            this_plugin_name,
+            label_child->key);
+          return -1;
+        }
+        wgsc_plugin_config_g->mr_labels[string(label_child->key)] = string(label_value);
+        sfree(label_value);
+      }
+    }
+  }
+
+  if (wgsc_plugin_config_g->operation_name == "") {
+    ERROR("%s: wgsc_config: missing OperationName in config", this_plugin_name);
+    return -1;
+  }
+  if (wgsc_plugin_config_g->consumer_id == "") {
+    ERROR("%s: wgsc_config: missing ConsumerId in config", this_plugin_name);
+    return -1;
+  }
+  if (wgsc_plugin_config_g->service_name == "") {
+    ERROR("%s: wgsc_config: missing ServiceName in config", this_plugin_name);
+    return -1;
+  }
+
   return 0;
 } /* }}} wgsc_config */
 
@@ -397,7 +470,6 @@ static int wgsc_shutdown(void) { /* {{{ */
 //
 void module_register(void) /* {{{ */
 {
-  INFO("%s: inside module_register for %s", this_plugin_name, COLLECTD_USERAGENT);
   plugin_register_complex_config(this_plugin_name, wgsc_config);
   plugin_register_init(this_plugin_name, wgsc_init);
   plugin_register_shutdown(this_plugin_name, wgsc_shutdown);
