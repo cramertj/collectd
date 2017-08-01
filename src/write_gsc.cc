@@ -385,16 +385,18 @@ static int wgsc_config(oconfig_item_t *ci) /* {{{ */
     }
     if (strcasecmp(child->key, "MonitoredResourceLabels") == 0) {
       for (int j = 0; j < child->children_num; j++) {
-        const oconfig_item_t *label_child = &child->children[j];
-        char *label_value = nullptr;
-        if (cf_util_get_string(label_child, &label_value) != 0) {
-          ERROR("%s: wgsc_config: failed to get value for label %s",
-            this_plugin_name,
-            label_child->key);
+        const oconfig_item_t *mr_entry = &child->children[j];
+        if ((strcasecmp(mr_entry->key, "Map") != 0)
+            || (mr_entry->values_num != 2)
+            || (mr_entry->values[0].type != OCONFIG_TYPE_STRING)
+            || (mr_entry->values[1].type != OCONFIG_TYPE_STRING)) {
+          ERROR("%s: wgsc_config: MonitoredResourceLabels can only contain "
+                "entries of the format: Map \"key\" \"value\"", this_plugin_name);
           return -1;
         }
-        wgsc_plugin_config_g->mr_labels[string(label_child->key)] = string(label_value);
-        sfree(label_value);
+        string key(mr_entry->values[0].value.string);
+        string val(mr_entry->values[1].value.string);
+        wgsc_plugin_config_g->mr_labels[key] = val;
       }
     }
   }
