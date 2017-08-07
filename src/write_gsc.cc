@@ -39,7 +39,7 @@ using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
 
 static const char this_plugin_name[] = "write_gsc";
-static const char service_control_addr[] = "servicecontrol.googleapis.com:443";
+static const char default_gsc_endpoint[] = "servicecontrol.googleapis.com:443";
 
 class ServiceControllerClient {
 public:
@@ -72,10 +72,10 @@ public:
 
 class WgscPluginContext {
   public:
-    WgscPluginContext():
+    WgscPluginContext(string gsc_endpoint):
       client(
         grpc::CreateChannel(
-           service_control_addr,
+           gsc_endpoint,
            grpc::SslCredentials(grpc::SslCredentialsOptions{})),
         grpc::GoogleComputeEngineCredentials()
       )
@@ -87,6 +87,7 @@ class WgscPluginConfig {
   public:
     WgscPluginConfig() {}
 
+    string gsc_endpoint;
     string operation_name;
     string consumer_id;
     string service_name;
@@ -272,7 +273,7 @@ static int raw_values_to_metric_value_sets(
 //
 
 static WgscPluginContext *wgsc_context_create() { /* {{{ */
-  return new (std::nothrow) WgscPluginContext;
+  return new (std::nothrow) WgscPluginContext(wgsc_plugin_config_g->gsc_endpoint);
 } /* }}} wgsc_context_create */
 
 static void wgsc_context_destroy(WgscPluginContext *context) { /* {{{ */
@@ -372,6 +373,10 @@ static int wgsc_config(oconfig_item_t *ci) /* {{{ */
   for (int i = 0; i < ci->children_num; i++) {
     const oconfig_item_t *child = &ci->children[i];
     if (wgsc_conf_get_match(
+          child, "GscEndpoint", &wgsc_plugin_config_g->gsc_endpoint) != 0) {
+      continue;
+    }
+    if (wgsc_conf_get_match(
           child, "OperationName", &wgsc_plugin_config_g->operation_name) != 0) {
       continue;
     }
@@ -401,6 +406,13 @@ static int wgsc_config(oconfig_item_t *ci) /* {{{ */
     }
   }
 
+  if (wgsc_plugin_config_g->gsc_endpoint == "") {
+    INFO("%s: wgsc_config: no GscEndpoint specified. Defaulting to \"%s\".",
+         this_plugin_name,
+         default_gsc_endpoint
+    );
+    wgsc_plugin_config_g->gsc_endpoint = default_gsc_endpoint;
+  }
   if (wgsc_plugin_config_g->operation_name == "") {
     ERROR("%s: wgsc_config: missing OperationName in config", this_plugin_name);
     return -1;
