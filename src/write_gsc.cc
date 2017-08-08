@@ -347,6 +347,27 @@ static int wgsc_write(const data_set_t *ds,
   return 0;
 } /* }}} wgsc_write */
 
+// If the string is of the form "ENV:<my_env_variable>" (e.g. "ENV:PATH"),
+// the result is the value of the corresponding environment variable.
+// Otherwise, it merely returns the argument string.
+int wgsc_get_string_or_resolve_env(char *value, string *ret_string) {
+  if (is_prefix_of("ENV:", value)) {
+    char *env_var = value + strlen("ENV:");
+    char *env_value = std::getenv(env_var);
+    if (env_value == nullptr) {
+      ERROR("%s: wgsc_c: Missing env var %s", this_plugin_name, env_var);
+      return -1;
+    } else {
+      *ret_string = string(env_value);
+      return 0;
+    }
+  } else {
+    *ret_string = string(value);
+    return 0;
+  }
+}
+
+// Returns -1 on failure, 0 on no match, 1 on successful match
 static int wgsc_conf_get_match(const oconfig_item_t *ci, const char *key, string *ret_string) {
   if (strcasecmp(ci->key, key) != 0) {
     return 0;
@@ -357,9 +378,11 @@ static int wgsc_conf_get_match(const oconfig_item_t *ci, const char *key, string
     ERROR("%s: wgsc_conf_get_match: failed to get value for %s", this_plugin_name, key);
     return -1;
   }
-  *ret_string = string(value);
+
+  int status = wgsc_get_string_or_resolve_env(value, ret_string);
+
   sfree(value);
-  return 1;
+  if (status != 0) { return -1; } else { return 1; }
 }
 
 static int wgsc_config(oconfig_item_t *ci) /* {{{ */
@@ -400,7 +423,10 @@ static int wgsc_config(oconfig_item_t *ci) /* {{{ */
           return -1;
         }
         string key(mr_entry->values[0].value.string);
-        string val(mr_entry->values[1].value.string);
+        string val;
+        if (wgsc_get_string_or_resolve_env(mr_entry->values[1].value.string, &val) != 0) {
+          return -1;
+        }
         wgsc_plugin_config_g->mr_labels[key] = val;
       }
     }
